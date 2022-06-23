@@ -37,6 +37,11 @@ ament_auto_find_build_dependencies()
 # Eigen
 find_package(Eigen3 REQUIRED)
 
+# OpenCV
+find_package(OpenCV REQUIRED COMPONENTS core imgcodecs videoio)
+message(STATUS "opencv version ${OpenCV_VERSION}")
+
+
 ament_auto_add_library(dope_decoder_node SHARED
   src/dope_decoder_node.cpp)
 target_compile_definitions(dope_decoder_node
@@ -46,14 +51,46 @@ rclcpp_components_register_nodes(dope_decoder_node
   "isaac_ros::dope::DopeDecoderNode")
 set(node_plugins "${node_plugins}isaac_ros::dope::DopeDecoderNode;$<TARGET_FILE:dope_decoder_node>\n")
 
+
+ament_auto_add_executable(dope_image_publisher_node src/dope_image_publisher_node.cpp)
+ament_target_dependencies(dope_image_publisher_node rclcpp OpenCV)
+
+
 install(TARGETS dope_decoder_node
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION bin
 )
 
+install(TARGETS dope_image_publisher_node
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib
+  RUNTIME DESTINATION bin
+)
+
+
 install(DIRECTORY
   config
+  DESTINATION share/${PROJECT_NAME}
+)
+
+install(DIRECTORY
+  resources
+  DESTINATION share/${PROJECT_NAME}
+)
+
+install(DIRECTORY
+  launch
+  DESTINATION share/${PROJECT_NAME}
+)
+
+install(DIRECTORY
+  config
+  DESTINATION share/${PROJECT_NAME}
+)
+
+install(DIRECTORY
+  models
   DESTINATION share/${PROJECT_NAME}
 )
 

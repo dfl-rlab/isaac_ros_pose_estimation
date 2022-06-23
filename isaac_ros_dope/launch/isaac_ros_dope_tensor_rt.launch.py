@@ -11,11 +11,14 @@ import os
 from launch import LaunchDescription
 from launch_ros.actions import ComposableNodeContainer
 from launch_ros.descriptions import ComposableNode
-
+from ament_index_python.packages import get_package_share_directory
+import launch_ros.actions
 
 def generate_launch_description():
     """Generate launch description for DOPE encoder->TensorRT->DOPE decoder."""
-    MODEL_FILE_NAME = 'dope_ketchup_pol.onnx'
+    MODEL_FILE_NAME = os.path.join(get_package_share_directory('isaac_ros_dope'), 'models', 'Ketchup.onnx')
+    image_file = os.path.join(get_package_share_directory('isaac_ros_dope'), 'resources', '0002_rgb.jpg')
+    # MODEL_FILE_NAME = 'Ketchup.onnx'
 
     dope_encoder_node = ComposableNode(
         name='dope_encoder',
@@ -34,8 +37,7 @@ def generate_launch_description():
         package='isaac_ros_tensor_rt',
         plugin='isaac_ros::dnn_inference::TensorRTNode',
         parameters=[{
-            'model_file_path': os.path.dirname(os.path.abspath(__file__)) +
-            '/../../test/models/' + MODEL_FILE_NAME,
+            'model_file_path': MODEL_FILE_NAME,
             'engine_file_path': '/tmp/trt_engine.plan',
             'input_tensor_names': ['input'],
             'input_binding_names': ['input'],
@@ -64,4 +66,7 @@ def generate_launch_description():
         output='screen',
     )
 
-    return LaunchDescription([container])
+    return LaunchDescription([container,
+        launch_ros.actions.Node(
+            package='isaac_ros_dope', executable='dope_image_publisher_node', output='screen',
+            parameters=[{'image_file': image_file}])])

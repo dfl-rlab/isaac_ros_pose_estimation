@@ -1,2 +1,4 @@
 # Ignore all pycache files
 **/__pycache__/**
+*.onnx
+*.pth
