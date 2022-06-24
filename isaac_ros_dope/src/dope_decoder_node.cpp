@@ -38,7 +38,7 @@ namespace fs = std::filesystem;
 #include "opencv2/imgcodecs.hpp"
 #include "opencv2/imgproc.hpp"
 #include "rcl_yaml_param_parser/parser.h"
-
+#include "cv_bridge/cv_bridge.h"
 
 namespace
 {
@@ -344,8 +344,10 @@ struct DopeDecoderNode::DopeDecoderImpl
     return output;
   }
 
+  /// Callback
   std::shared_ptr<geometry_msgs::msg::PoseArray> OnCallback(
-    const isaac_ros_nvengine_interfaces::msg::TensorList::ConstSharedPtr & belief_maps_msg)
+    const isaac_ros_nvengine_interfaces::msg::TensorList::ConstSharedPtr & belief_maps_msg,
+    sensor_msgs::msg::Image::SharedPtr & out_mask)
   {
     auto tensors = belief_maps_msg->tensors;
     std::vector<geometry_msgs::msg::Pose> poses;
@@ -395,6 +397,34 @@ struct DopeDecoderNode::DopeDecoderImpl
       for (size_t j = 0; j < num_valid_points; ++j) {
         keypoints_3d.col(j) = cuboid_3d_points.col(valid_points[j]);
       }
+      /// Publish
+      const auto & cuboid_2d_points = object.second;
+      const size_t num_cuboid_2d_points = cuboid_2d_points.size();
+      ///RCLCPP_INFO(rclcpp::get_logger(logger_name_), "Cuboid 2D points size: %d", num_cuboid_2d_points);
+
+      /// Create the mask image
+      cv::Mat mask(cv::Size(640,480), CV_8UC1, cv::Scalar(255));
+      cv::Mat cv_mask_2d_points;
+      cv::eigen2cv(object.second, cv_mask_2d_points);
+      
+
+      // for(int y=0; y < mask.rows; y++)
+      // {
+      //   for(int x=0; x < mask.cols; x++)
+      //   {
+      //     //int value = cv_mask_2d_points.at<uchar>(y,x);
+      //     mask.at<uchar>(y,x) = cv_mask_2d_points;
+      //     //RCLCPP_INFO(rclcpp::get_logger(logger_name_), "%d", value);
+      //   }
+      // }
+
+      // for (size_t j = 0; j < num_cuboid_2d_points; ++j)
+      // {
+      //   RCLCPP_INFO(rclcpp::get_logger(logger_name_), "%f", cuboid_2d_points(j));
+      // }
+      
+      /// Publish mask
+      out_mask = cv_bridge::CvImage(std_msgs::msg::Header(), "mono8", mask).toImageMsg();
 
       Pose3d pose;
       cv::Mat rvec, tvec;
@@ -459,6 +489,8 @@ DopeDecoderNode::DopeDecoderNode(rclcpp::NodeOptions options)
       std::bind(&DopeDecoderNode::DopeDecoderCallback, this, std::placeholders::_1))),
   // Publishers
   pub_(create_publisher<geometry_msgs::msg::PoseArray>("dope/pose_array", 1)),
+  mask_pub_(create_publisher<sensor_msgs::msg::Image>("/mask", 10)),
+
   // Impl initialization
   impl_(std::make_unique<struct DopeDecoderImpl>(* this))
 {
@@ -518,12 +550,13 @@ DopeDecoderNode::DopeDecoderNode(rclcpp::NodeOptions options)
 
 DopeDecoderNode::~DopeDecoderNode() = default;
 
-void DopeDecoderNode::DopeDecoderCallback(
-  const isaac_ros_nvengine_interfaces::msg::TensorList::ConstSharedPtr belief_maps_msg)
+void DopeDecoderNode::DopeDecoderCallback(const isaac_ros_nvengine_interfaces::msg::TensorList::ConstSharedPtr belief_maps_msg)
 {
-  std::shared_ptr<geometry_msgs::msg::PoseArray> msg = impl_->OnCallback(belief_maps_msg);
+  sensor_msgs::msg::Image::SharedPtr mask;
+  std::shared_ptr<geometry_msgs::msg::PoseArray> msg = impl_->OnCallback(belief_maps_msg,mask);
   msg->header.frame_id = header_frame_id_;
   pub_->publish(*msg);
+  mask_pub_->publish(*mask);
 }
 
 }  // namespace dope

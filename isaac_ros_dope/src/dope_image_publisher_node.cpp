@@ -60,24 +60,28 @@ class DopeImagePublisher : public rclcpp::Node
       {
         RCLCPP_ERROR(this->get_logger(), "Failed to load image (%s):",image_filename_.c_str()); 
       }
+      /// Resize the image which is used for the encoder.
+      /// DOPE network has a fixed input size of 640 x 480.    
+      cv::resize(image_, image_resized_, cv::Size(640, 480));
 
       /// Create the timer
-      timer_ = this->create_wall_timer(500ms, std::bind(&DopeImagePublisher::timer_callback, this));
+      timer_ = this->create_wall_timer(500ms, std::bind(&DopeImagePublisher::image_callback, this));
     }
 
   private:
-    void timer_callback()
+    void image_callback()
     {
       //RCLCPP_INFO(this->get_logger(), "Publishing image: ");
       //RCLCPP_INFO(this->get_logger(), "%f",camera_matrix_[0]);
-      
-      sensor_msgs::msg::Image::SharedPtr out_img = cv_bridge::CvImage(std_msgs::msg::Header(), "bgr8", image_).toImageMsg();
+
+    
+      sensor_msgs::msg::Image::SharedPtr out_img = cv_bridge::CvImage(std_msgs::msg::Header(), "bgr8", image_resized_).toImageMsg();
       out_img->header.frame_id = "camera";
       out_img->header.stamp = rclcpp::Clock().now();
       camera_info_.header.frame_id = "camera";
       camera_info_.header.stamp = rclcpp::Clock().now();//this->get_clock()->now();
-      camera_info_.width = image_.cols;
-      camera_info_.height = image_.rows;
+      camera_info_.width = image_resized_.cols;
+      camera_info_.height = image_resized_.rows;
       camera_info_.distortion_model = "plumb_bob";
       camera_info_.d = {0, 0, 0, 0, 0};
       camera_info_.r = {1, 0, 0, 0, 1, 0, 0, 0, 1};
@@ -103,6 +107,7 @@ class DopeImagePublisher : public rclcpp::Node
     const std::string image_filename_;
     std::array<double, 9> camera_matrix_ = {0};
     cv::Mat image_;
+    cv::Mat image_resized_;
 };
 
 int main(int argc, char * argv[])

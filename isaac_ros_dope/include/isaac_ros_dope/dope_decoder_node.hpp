@@ -19,7 +19,7 @@
 #include "message_filters/subscriber.h"
 #include "message_filters/sync_policies/exact_time.h"
 #include "rclcpp/rclcpp.hpp"
-
+#include "sensor_msgs/msg/image.hpp"
 
 namespace isaac_ros
 {
@@ -67,6 +67,9 @@ private:
 
   // Publishes the array of poses of detected objects
   rclcpp::Publisher<geometry_msgs::msg::PoseArray>::SharedPtr pub_;
+
+  /// Publishes the image mask of detected objects
+  rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr mask_pub_;
 
   struct DopeDecoderImpl;
   std::unique_ptr<DopeDecoderImpl> impl_;  // Pointer to implementation
