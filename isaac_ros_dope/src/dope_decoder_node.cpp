@@ -390,38 +390,35 @@ struct DopeDecoderNode::DopeDecoderImpl
 
     // Run Perspective-N-Point on the detected object to find the 6-DoF pose of the bounding cuboid
     const auto cuboid_3d_points = CuboidVertices(cuboid_dimensions_);
-    for (const DopeObjectKeypoints & object : dope_objects) {
+    for (const DopeObjectKeypoints & object : dope_objects)
+    {
       const auto & valid_points = object.first;
       const size_t num_valid_points = valid_points.size();
       Eigen::Matrix3Xd keypoints_3d(3, num_valid_points);
-      for (size_t j = 0; j < num_valid_points; ++j) {
+      for (size_t j = 0; j < num_valid_points; ++j)
+      {
         keypoints_3d.col(j) = cuboid_3d_points.col(valid_points[j]);
       }
       /// Publish
-      const auto & cuboid_2d_points = object.second;
-      const size_t num_cuboid_2d_points = cuboid_2d_points.size();
-      ///RCLCPP_INFO(rclcpp::get_logger(logger_name_), "Cuboid 2D points size: %d", num_cuboid_2d_points);
-
-      /// Create the mask image
+      const auto & eigen_2d_points = object.second;
+      const size_t num_eigen_2d_points = eigen_2d_points.size();
       cv::Mat mask(cv::Size(640,480), CV_8UC1, cv::Scalar(255));
-      cv::Mat cv_mask_2d_points;
-      cv::eigen2cv(object.second, cv_mask_2d_points);
-      
-
-      // for(int y=0; y < mask.rows; y++)
-      // {
-      //   for(int x=0; x < mask.cols; x++)
-      //   {
-      //     //int value = cv_mask_2d_points.at<uchar>(y,x);
-      //     mask.at<uchar>(y,x) = cv_mask_2d_points;
-      //     //RCLCPP_INFO(rclcpp::get_logger(logger_name_), "%d", value);
-      //   }
-      // }
-
-      // for (size_t j = 0; j < num_cuboid_2d_points; ++j)
-      // {
-      //   RCLCPP_INFO(rclcpp::get_logger(logger_name_), "%f", cuboid_2d_points(j));
-      // }
+      cv::Mat cv_2d_points;
+      cv::eigen2cv(eigen_2d_points, cv_2d_points);
+      std::vector<int> pt_vec;
+      for(unsigned int i=0;i<cv_2d_points.cols; i++)
+      {
+        for(unsigned int j=0; j<cv_2d_points.rows; j++)
+        {
+          //std::cout << cv_2d_points.at<float>(j,i) << std::endl;
+          pt_vec.push_back(int(cv_2d_points.at<float>(j,i)));
+        }
+        cv::Point pt;
+        pt = cv::Point(pt_vec[0], pt_vec[1]);
+        mask.at<uchar>(pt_vec[1],pt_vec[0])=0;
+        //cv::circle(mask,pt,1,cv::Scalar(0));
+        pt_vec.clear();
+      }
       
       /// Publish mask
       out_mask = cv_bridge::CvImage(std_msgs::msg::Header(), "mono8", mask).toImageMsg();
